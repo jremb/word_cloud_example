@@ -38,7 +38,6 @@ class WordcloudSideMenu(QWidget):
         self.lable_combo_wc_type = QLabel("Word Cloud type:")
         self.combo_wc_type = QComboBox()
         self.combo_wc_type.addItems(["text of tweets", "QTs per user"])
-        #self.combo_wc_type.currentIndexChanged.connect(self.signal_wc_type.emit)
         self.combo_wc_type.currentTextChanged.connect(self.signal_wc_type.emit)
         # Word Cloud GB:
         self.gb_word_cloud = QGroupBox("Tokenizer Options")
