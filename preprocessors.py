@@ -9,9 +9,10 @@ from PyQt6.QtCore import pyqtSignal
 
 class Tokenize(QThread):
     """
-    A class to pipe data through a list of preprocessors.
+    Class to pipe data through a list of preprocessors.
     """
 
+    signal_error = pyqtSignal(str)
     signal_finished = pyqtSignal()
     signal_data = pyqtSignal(list)
 
@@ -22,39 +23,34 @@ class Tokenize(QThread):
 
     def run(self):
         """
-        Creates a spacy doc from string of data. Automatically creates bag of words with punctuation and urls removed.
+        Creates a spacy doc from string of data. Creates bag of words with
+        punctuation removed. Optionally removes urls removed and stop words.
         """
-        # Remove urls:
-        if "remove_urls" in self.opts:
-            self.data = re.sub(r"(https:\S*[^'\. ])", "", self.data)
-        # Create spacy doc:
-        doc = self.create_spacy_doc()
-        # Create bow, removing punctuation and stop words if specified:
-        if "remove_stop_words" in self.opts:
-            bow = [
-                token.text for token in doc if not token.is_punct and not token.is_stop
-            ]
-        else:
-            # Create bow, removing punctuation:
-            bow = [token.text for token in doc if not token.is_punct]
-        # Send bow to main thread:
-        self.signal_data.emit(bow)
-        # Finish:
-        self.signal_finished.emit()
-
-    def remove_punct(self, doc: spacy.tokens.Doc) -> spacy.tokens.Doc:
-        """
-        Removes punctuation.
-        """
-        if isinstance(self.data, list):
-            self.data = [token.replace("\n", " ").lower() for token in self.data]
-        elif isinstance(self.data, dict):
-            if "data" in self.data:
-                self.data = [
-                    token.replace("\n", " ").lower() for token in self.data["data"]
+        try:
+            # Remove urls:
+            if "remove_urls" in self.opts:
+                self.data = re.sub(r"(https:\S*[^'\. ])", "", self.data)
+            # Create spacy doc:
+            doc = self.create_spacy_doc()
+            # Create bow, removing punctuation and stop words if specified:
+            if "remove_stop_words" in self.opts:
+                bow = [
+                    token.text
+                    for token in doc
+                    if not token.is_punct and not token.is_stop
                 ]
             else:
-                pass
+                # Create bow, removing punctuation:
+                bow = [token.text for token in doc if not token.is_punct]
+            # Send bow to main thread:
+            self.signal_data.emit(bow)
+            # Finish:
+            self.signal_finished.emit()
+        except Exception as e:
+            self.signal_error.emit(
+                f"Error: Missing 'en_core_web_lg' library.\nInstall with 'python -m spacy download en_core_web_lg'"
+            )
+            self.signal_finished.emit()
 
     def create_spacy_doc(self) -> spacy.tokens.Doc:
         """
