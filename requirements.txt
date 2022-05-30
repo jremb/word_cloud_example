@@ -1,6 +1,8 @@
 contractions==0.1.72
 en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.3.0/en_core_web_lg-3.3.0-py3-none-any.whl
 matplotlib==3.5.2
+psycopg==3.0.14
+psycopg-binary==3.0.14
 PyQt6==6.3.0
 pyqtdeploy==3.2.0
 spacy==3.3.0

@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 class WordcloudSideMenu(QWidget):
     # Custom signals:
     signal_toggle_load = pyqtSignal(bool)
+    signal_wc_type = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -33,6 +34,12 @@ class WordcloudSideMenu(QWidget):
         # the below radio button. The above signal/slot can handle the logic for
         # both options:
         self.load_from_db = QRadioButton("Load from database")
+        # Word Cloud type options:
+        self.lable_combo_wc_type = QLabel("Word Cloud type:")
+        self.combo_wc_type = QComboBox()
+        self.combo_wc_type.addItems(["text of tweets", "QTs per user"])
+        #self.combo_wc_type.currentIndexChanged.connect(self.signal_wc_type.emit)
+        self.combo_wc_type.currentTextChanged.connect(self.signal_wc_type.emit)
         # Word Cloud GB:
         self.gb_word_cloud = QGroupBox("Tokenizer Options")
         # Remove links option:
@@ -50,6 +57,9 @@ class WordcloudSideMenu(QWidget):
         # Data Source Options:
         main_vbox.addWidget(self.load_from_file)
         main_vbox.addWidget(self.load_from_db)
+        # Word Cloud type options:
+        main_vbox.addWidget(self.lable_combo_wc_type)
+        main_vbox.addWidget(self.combo_wc_type)
         # Word Cloud GB:
         vbox_gb_preprocessing = QVBoxLayout()
         vbox_gb_preprocessing.addWidget(self.cb_remove_urls)

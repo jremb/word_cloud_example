@@ -61,6 +61,7 @@ class MainGui(QWidget):
         super().__init__()
         self.setGeometry(300, 300, 831, 402)
         self.loaded_data: str = ""
+        self.wc_type = "text of tweets"
         self.data_preview_tracker = list()
         self.bow = Counter()
         self.token_opts = list()
@@ -68,7 +69,7 @@ class MainGui(QWidget):
         self._init_widgets()
         self._init_layout()
 
-    def _init_widgets(self):
+    def _init_widgets(self) -> None:
         # Tab widget:
         self.tab_widget = QTabWidget(self)
         self.twitter_tab = QWidget()
@@ -119,12 +120,13 @@ class MainGui(QWidget):
         # Word Cloud Sidebar:
         self.sb_wc = WordcloudSideMenu()
         self.sb_wc.signal_toggle_load.connect(self.toggle_data_loading)
+        self.sb_wc.signal_wc_type.connect(self.set_wc_type)
         self.sb_wc.cb_remove_urls.stateChanged.connect(self.remove_urls)
         self.sb_wc.cb_remove_stop_words.stateChanged.connect(self.remove_stop_words)
         self.sb_wc.btn_run_preprocessing.clicked.connect(self.start_worker_token)
         self.figure = Figure()
 
-    def _init_layout(self):
+    def _init_layout(self) -> None:
         # Word cloud tab, right side:
         wc_sub_vbox = QVBoxLayout()
         # Load from file:
@@ -183,7 +185,7 @@ class MainGui(QWidget):
             "port": self.inp_db_port.text(),
         }
 
-    def toggle_data_loading(self, state):
+    def toggle_data_loading(self, state) -> None:
         if state:
             self.filepath_input.show()
             self.btn_load_file.show()
@@ -193,7 +195,10 @@ class MainGui(QWidget):
             self.btn_load_file.hide()
             self.gb_db.show()
 
-    def load_file(self):
+    def set_wc_type(self, wc_type) -> None:
+        self.wc_type = wc_type
+
+    def load_file(self) -> None:
         """
         Attempts to load the file assuming it is JSON. If successfull, it attempts
         to find the tweet text field and concatenates each text into a single str
@@ -227,7 +232,7 @@ class MainGui(QWidget):
             )
             self.load_newline_delimited_file()
 
-    def load_newline_delimited_file(self):
+    def load_newline_delimited_file(self) -> None:
         """
         Attempts to load the file assuming it is a plain text file and that each
         line of data is a tweet text. If successfull, it stores each line (tweet's
@@ -252,7 +257,7 @@ class MainGui(QWidget):
         except Exception as e:
             self.error_popup(f"Error: {e}")
 
-    def test_db_conn(self):
+    def test_db_conn(self) -> None:
         """
         Attempts to connect to the database using the provided credentials.
         If successful, it will display a success message in the info view.
@@ -268,7 +273,7 @@ class MainGui(QWidget):
         except Exception as e:
             self.error_popup(f"Error: {e}")
 
-    def db_response_handler(self, _sender, response):
+    def db_response_handler(self, _sender, response) -> None:
         """
         Handles the response from the database worker. If successful, it will
         display a success message in the info view.
@@ -281,14 +286,14 @@ class MainGui(QWidget):
             for table in response:
                 self.info_view_wc.append("  " + table[0])
 
-    def clear_loaded_data(self):
+    def clear_loaded_data(self) -> None:
         self.loaded_data = ""
         self.data_preview_tracker = []
         self.bow = []
         self.info_view_wc.setText("")
         self.signal_update_status_bar.emit("Data cleared")
 
-    def update_info_view(self):
+    def update_info_view(self) -> None:
         """
         Updates the info view
         """
@@ -297,7 +302,7 @@ class MainGui(QWidget):
             f"Loaded {self.filepath_input.text()}\n\nSample of data:\n{data}"
         )
 
-    def start_worker_token(self):
+    def start_worker_token(self) -> None:
         """
         Starts a worker thread to run the preprocessing functions on the entire data set.
         """
@@ -307,7 +312,7 @@ class MainGui(QWidget):
         self.worker_token.signal_error.connect(self.error_popup)
         self.worker_token.start()
 
-    def attach_processed_data(self, bow):
+    def attach_processed_data(self, bow) -> None:
         """
         Attaches bow from worker to self.bow.
         """
@@ -317,7 +322,7 @@ class MainGui(QWidget):
         msg = [str(tup) for tup in self.bow.most_common(20)]
         self.info_view_wc.setText(f"10 most common words:\n{msg}")
 
-    def remove_urls(self):
+    def remove_urls(self) -> None:
         """
         Adds or removes remove_urls option.
         """
@@ -326,7 +331,7 @@ class MainGui(QWidget):
         else:
             self.token_opts.remove("remove_urls")
 
-    def remove_stop_words(self):
+    def remove_stop_words(self) -> None:
         """
         Adds or removes remove_stop_words option.
         """
@@ -335,20 +340,40 @@ class MainGui(QWidget):
         else:
             self.token_opts.remove("remove_stop_words")
 
-    def generate_word_cloud(self):
-        if self.bow:
+    def generate_word_cloud(self) -> None:
+        data = None
+        if self.bow and self.wc_type == "text of tweets":
+            data = self.bow
+        elif self.wc_type == "QTs per user":
+            data = self.get_users_qt_count()
+        if data:
             self.word_cloud = WordCloud(
                 background_color="white",
                 max_words=100,
                 width=800,
                 height=600,
                 random_state=1,
-            ).generate_from_frequencies(self.bow)
+            ).generate_from_frequencies(data)
             plt.axis("off")
             plt.imshow(self.word_cloud)
             self.figure = Figure(plt.show())
 
-    def start_worker_api(self):
+    def get_users_qt_count(self) -> dict:
+        if self.json_data:
+            users_qts_dict = dict()
+            try:  # Might not have the fields/expansions:
+                for idx, obj in enumerate(self.json_data["data"]):
+                    users_qts_dict.setdefault(obj["author_id"], 0)
+                    users_qts_dict[obj["author_id"]] += int(self.json_data["data"][idx]["public_metrics"]["quote_count"])
+                for idx, obj in enumerate(self.json_data["includes"]["tweets"]):
+                    users_qts_dict.setdefault(obj["author_id"], 0)
+                    users_qts_dict[obj["author_id"]] += int(self.json_data["includes"]["tweets"][idx]["public_metrics"]["quote_count"])
+            except KeyError as e:
+                self.error_popup(f"Error: {e}")
+            finally:
+                return users_qts_dict
+
+    def start_worker_api(self) -> None:
         """
         Runs the query.
         """
@@ -363,7 +388,7 @@ class MainGui(QWidget):
         self.worker_query.signal_finished.connect(self.worker_query.deleteLater)
         self.worker_query.start()
 
-    def handle_api_data(self, data):
+    def handle_api_data(self, data) -> None:
         """
         Handles the data from the API worker.
         """
@@ -372,7 +397,7 @@ class MainGui(QWidget):
         # ability to create word cloud directly from data.
         self.info_view_api.append(f"{data}")
 
-    def error_popup(self, msg: str):
+    def error_popup(self, msg: str) -> None:
         pop = QMessageBox()
         pop.setIcon(QMessageBox.Icon.Critical)
         pop.setWindowTitle("Error")
